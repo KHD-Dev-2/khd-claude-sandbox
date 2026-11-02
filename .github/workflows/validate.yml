@@ -1,0 +1,19 @@
+name: validate-claude-sandbox
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Python scripts
+        run: python -m py_compile scripts/train_gen11.py scripts/eval_gen11.py
+      - name: Check no obvious secrets
+        run: |
+          if grep -RInE 'rnd_[A-Za-z0-9]{10,}|KAGGLE_KEY|API_KEY|BEGIN (RSA|OPENSSH) PRIVATE KEY' . --exclude-dir=.git; then
+            echo 'Potential secret found'; exit 1
+          fi
