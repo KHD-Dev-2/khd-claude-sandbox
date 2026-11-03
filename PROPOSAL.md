@@ -334,3 +334,54 @@ Lecture :
 2. Le correctif des populations remonte l'épidémiologie de 9 à 13. Ce correctif vient de l'analyse des échecs sur bench199 (§15) : ce gain ne compte pas comme une preuve indépendante.
 3. Sur D3, le modèle apprend les traces courtes (Horner, ratios), pas encore les longues (Cramer, Euclide, déterminants). Deux familles ont trop peu d'exemples distincts : 97 pour les binomiaux, 92 pour les sommes de carrés. 6 000 steps ne suffisent pas pour 9 familles nouvelles.
 4. Aucune promotion. Pour qu'un candidat maison soit défendable, il faut d'abord une réplication à une autre graine de Gen12b ou de Gen15.
+
+## 17. Résultat mesuré : adaptateur Mistral-7B de Deep (`khd-mistral-qlora-20261103`)
+
+**Modèle.** Mistral-7B-v0.1 (Apache 2.0), QLoRA rang 16 entraîné par Deep : 600 steps sur son corpus de raisonnement Gen11 (43 518 exemples).
+
+**Mesure.** Inférence locale 4 bits sur T4, sans API, en décodage glouton, avec le format de prompt de Deep. Même évaluateur v2, mêmes 199 cas, même D2 propre.
+
+L'adaptateur ne sait pas s'arrêter et répète ses blocs « ### Réponse ». Sa prédiction est donc coupée au premier bloc. Le témoin (la même base sans adaptateur) est mesuré de deux façons, parce que ses réponses commencent par un saut de ligne :
+- coupé au premier paragraphe, comme l'adaptateur ;
+- coupé au premier « ### », ce qui lui est plus favorable.
+
+| Modèle | bench199 v2 | bench199 v2_strict | D2 propre |
+|---|---|---|---|
+| Gen6 | 7 | 3 | – |
+| Gen12b (meilleur maison accepté) | 24 | 19 | 78 |
+| Gen15 | 27 | 18 | 107 |
+| Mistral-7B sans adaptateur (coupe « ### ») | 72 | 66 | 18 |
+| **Mistral-7B + LoRA KHD (Deep)** | **113** | **103** | **94** |
+
+Comparaisons appariées de l'adaptateur (McNemar exact, discordances b/c) :
+
+| Contre | v2 | v2_strict |
+|---|---|---|
+| Gen6 | 106/0, p < 1e-6 | 100/0, p < 1e-6 |
+| Gen12b | 89/0, p < 1e-6 | 87/3, p < 1e-6 |
+| Base Mistral, bench199 | 52/11, p < 1e-6 | 51/14, p = 4e-6 |
+| Base Mistral, D2 propre | 76/0, p < 1e-6 | |
+| Gen12b, D2 propre | 30/14, p = 0,023 | |
+
+**Recherche de fuite.**
+- Aucun gabarit de question de bench199 (nombres masqués) n'apparaît dans le corpus de Deep.
+- 56 questions de bench199 partagent leur suite de nombres avec une question d'entraînement, mais ce sont surtout des coïncidences entre familles différentes : « moyenne de 39 et 7 » face à « 39 kg à 7 m/s ».
+- Les corpus de Gen12b et Gen15 en contiennent autant (58 et 60), sans produire un tel score.
+- Le corpus contient les 44 cas contaminés de D2, déjà exclus de D2 propre.
+
+Par domaine (v2) :
+- physique 28/34 ;
+- chimie 20/25 ;
+- épidémiologie 22/30 ;
+- mathématiques 23/35 ;
+- biologie 15/41 ;
+- informatique 5/34.
+
+**Lecture.**
+1. Le seuil d'acceptation est franchi de très loin : 113/199 avec p < 1e-6 contre Gen6 et contre Gen12b. Mistral-7B seul en donne déjà une bonne part ; l'entraînement KHD ajoute environ 40 cas (p < 1e-5).
+2. C'est la voie la plus rapide vers une IA KHD : poids ouverts, adaptateur à nous, inférence locale.
+3. Avant toute promotion, il reste :
+   - l'audit du Lead ;
+   - une réplication avec une autre graine ;
+   - corriger l'arrêt de génération (token de fin, objet de Mistral-étapes, §15) ;
+   - régler la question de l'hébergement : un 7B demande un GPU ou une quantification CPU. L'adaptateur LoRA Cloudflare existant repose sur Mistral-7B-Instruct-v0.2, qui n'est pas la même base.
