@@ -616,3 +616,26 @@ Demande du propriétaire : entraîner l'IA sur les maths, la physique, la chimie
 - **Non-régression** : bench199 et D2 propre sans perte significative (p < 0,05) contre Mistral-étapes (§18) ; D4 sans perte significative contre Mistral-étapes 3 (§20).
 - **Indicatif** : bench199 par domaine (biologie, chimie, physique, maths). Le choix des domaines vient d'une demande du propriétaire, pas des questions de bench199, que je n'ai pas regardées.
 - **Promotion** : aucune avant l'audit du Lead.
+
+## 25. Protocole suivant (pré-enregistré avant les résultats) : Mistral-étapes 6, niveau avancé
+
+Demande du propriétaire : les maths et les sciences les plus difficiles. Écrit avant tout résultat de Mistral-étapes 4, 5 et 6.
+
+**Corpus Gen20** (`khd-gen20-avance-20261103`) : 15 000 lignes de Gen18, les 25 476 lignes de sciences de Gen19, et **43 familles de niveau prépa / licence** :
+- **Maths (17)** : valeurs propres 2×2, inverse et puissances de matrices, équations différentielles linéaires d'ordre 1 et 2 avec conditions initiales, intégration par parties, séries géométriques et Σ n x^n, limites par équivalents, racines entières d'un polynôme de degré 3 (Horner), indicatrice d'Euler, petit théorème de Fermat, loi binomiale, formule de Bayes, dérangements, nombres de Catalan, puissances de complexes, somme des cubes.
+- **Physique (10)** : relativité restreinte (dilatation du temps, contraction des longueurs), modèle de Bohr, énergie des photons, oscillateur élastique, circuit RC, rendement de Carnot, gaz parfait, tir horizontal, troisième loi de Kepler, loi de Coulomb.
+- **Chimie (7)** : équilibre H2 + I2 ⇌ 2 HI, cinétique d'ordre 1, loi de Hess (ΔfH° de référence), solutions tampons, acides faibles, piles et ΔrG°, produit de solubilité.
+- **Biologie (7)** : liaison génétique (distance en cM), test du χ², Michaelis-Menten, PCR, croissance logistique, hérédité liée à l'X, potentiel d'équilibre membranaire.
+- **Épidémiologie (2)** : seuil d'immunité collective, nombre de sujets à traiter.
+
+20 275 nouveaux exemples, 94 272 égalités recalculées, aucune fuite détectée. Certaines familles sont très petites parce que leur espace de questions est limité (Hess 2, Bohr 4, immunité collective 4) : elles sont surtout testées sur la méthode.
+
+**Run.** `khd-mistral-steps6-20261103` : même pipeline, graine 2017, **2 500 steps**. Il passe après Mistral-étapes 5, dans la limite de deux sessions GPU Kaggle.
+
+**Mesure indépendante.** **D7** : 344 questions, 8 par famille, nouvelle graine, tenues à part (avec D3 à D6).
+
+**Seuils.**
+- **D7** : au moins 206/344 (60 %). Le niveau est plus dur, d'où un seuil plus bas que pour D6.
+- **Non-régression** : D6 sans perte significative contre Mistral-étapes 5 (§24) ; bench199 et D2 propre sans perte significative contre Mistral-étapes (§18).
+- **Indicatif** : D7 par domaine et bench199 par domaine.
+- **Promotion** : aucune avant l'audit du Lead.
