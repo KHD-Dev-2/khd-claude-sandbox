@@ -284,3 +284,53 @@ Pour chaque run, la décision suit les mêmes seuils :
 - **Promotion** : aucune avant l'audit du Lead.
 
 Inférence locale (poids ouverts), sans API externe, 0 €.
+
+## 16. Résultat mesuré : Gen15 (familles prépa + populations variées)
+
+Reprise depuis Gen14 : 6 000 steps, 44 min sur T4. Val loss 0,059, plus haute qu'avant car le corpus contient de nouvelles familles.
+
+| Ensemble | Gen6 | Gen12b | Gen14 | **Gen15** |
+|---|---|---|---|---|
+| bench199 v2 | 7 | 24 | 17 | **27** |
+| bench199 v2_strict | 3 | 19 | 15 | **18** |
+| D2 propre (156) | – | 78 | 108 | **107** |
+| D3 prépa (220, réponse exacte) | – | – | – | **41** |
+
+Comparaisons appariées (McNemar exact, discordances b/c) :
+
+| Comparaison | v2 | v2_strict |
+|---|---|---|
+| Gen15 vs Gen6 | 21/1, p < 1e-4 | 15/0, p = 1e-4 |
+| Gen15 vs Gen12b | 10/7, p = 0,63 | 6/7, p = 1,0 |
+| Gen15 vs Gen14 | 15/5, p = 0,041 | 8/5, p = 0,58 |
+| Gen15 vs Gen12b, D2 propre | 31/2, p < 1e-6 | |
+
+Par domaine, en v2 :
+- épidémiologie 13/30 (Gen14 : 9) ;
+- chimie 7/25 ;
+- physique 5/34 ;
+- biologie 1/41 ;
+- mathématiques 1/35 ;
+- informatique 0/34.
+
+D3 par famille :
+
+| Famille | Score |
+|---|---|
+| Prévalence | 12/20 |
+| Incidence | 10/20 |
+| Horner | 10/20 |
+| Euclide | 3/20 |
+| Facteurs premiers | 2/20 |
+| Puissances modulo | 2/20 |
+| Déterminants 3×3 | 1/20 |
+| Suites récurrentes | 1/20 |
+| Cramer | 0/20 |
+| Binomiaux | 0/20 |
+| Sommes de carrés | 0/20 |
+
+Lecture :
+1. Gen15 est le meilleur modèle maison en v2 sur bench199 (27/199). Il passe le seuil contre Gen6. Il ne bat pas Gen12b de façon significative (p = 0,63), et en strict il est au même niveau (18 contre 19). Avec la variance de graine mesurée par Deep (±3), il n'y a pas de gain démontré contre Gen12b.
+2. Le correctif des populations remonte l'épidémiologie de 9 à 13. Ce correctif vient de l'analyse des échecs sur bench199 (§15) : ce gain ne compte pas comme une preuve indépendante.
+3. Sur D3, le modèle apprend les traces courtes (Horner, ratios), pas encore les longues (Cramer, Euclide, déterminants). Deux familles ont trop peu d'exemples distincts : 97 pour les binomiaux, 92 pour les sommes de carrés. 6 000 steps ne suffisent pas pour 9 familles nouvelles.
+4. Aucune promotion. Pour qu'un candidat maison soit défendable, il faut d'abord une réplication à une autre graine de Gen12b ou de Gen15.
