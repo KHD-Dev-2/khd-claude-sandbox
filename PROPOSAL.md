@@ -97,5 +97,71 @@ Pour v2 lui-même :
 
 - L'audit humain trouve des faux positifs v2 (par exemple un opérande égal à la réponse parmi les 4 derniers nombres). `v2_strict` borne ce cas par le bas.
 - Les prédictions enregistrées sont tronquées à 300 caractères. Une réponse finale coupée échappe à v1 comme à v2, ce qui sous-estime les deux.
-- Gen11 : si son corpus n'était pas chiffre par chiffre, le prompt `digitize` de l'évaluation est un décalage de distribution. Le nouveau `WARNING_DIGIT_MISMATCH` le signalera au prochain run, sans le corriger en silence.
+- Gen11 : confirmé au §9. Son vocabulaire contient 965 nombres à plusieurs chiffres, mais l'évaluation découpait ses prompts chiffre par chiffre.
 - Le fichier 199 cas a été obtenu en retirant `bench-155` du fichier 200 cas. Si le benchmark officiel diffère, les chiffres du §3 changent. Comparer `bench_sha256`.
+
+---
+
+# Mise à jour du 03/11/2026 — contrat de prétraitement (branche `claude/preprocess-contract`)
+
+## 9. Bug corrigé : le prétraitement des prompts était deviné d'après le nom du modèle
+
+- L'évaluateur découpait les nombres du prompt chiffre par chiffre pour les modèles listés dans `DIGIT_MODELS`, sans regarder comment le modèle avait été entraîné.
+- **Gen11 n'a pas été entraîné ainsi.** `train_gen11.py` n'appelle pas `digitize`, et le vocabulaire Gen11 contient **965 tokens numériques à plusieurs chiffres**. Son score de 6/199 a donc été mesuré sur des prompts écrits dans une forme jamais vue à l'entraînement. Ce score ne mesure pas Gen11.
+- **Correctif** :
+  - `train_gen11.py` applique un prétraitement déclaré, `PREPROCESS = {"digits": True, "sequences": True}`, au corpus d'entraînement, de validation et de holdout, et l'enregistre dans `config["preprocess"]` ;
+  - `eval_gen11.py` lit ce contrat (`preprocess_for`). En l'absence de contrat, c'est le vocabulaire qui décide, jamais le nom du modèle. Un écart avec l'ancienne règle par nom est seulement signalé (`NOTE_NAME_RULE_DIFFERS`) ;
+  - les séquences ADN/ARN sont découpées lettre par lettre (`seqsplit`), puis recollées avant la notation v2 (`unseq`). Sans cela, `CGGTCAAA` est un seul mot du vocabulaire, impossible à généraliser ;
+  - `--rescore` détecte aussi les sorties ADN découpées (`predictions_seq_split`) ;
+  - `train_gen11.py` tronquait à `ctx + 1` tokens alors que la table des positions en a `ctx` : c'est corrigé en `ctx`.
+- **v1 est inchangé.** Avec ce code, les scores v2 de Gen6, Gen7 et Gen11 sont identiques au §3.
+- **Correction du §3 pour Gen8** : ses sorties sont aussi découpées chiffre par chiffre (218 occurrences, aucun nombre collé). Son v2 réel est **2/199** (v2_strict 0/199), pas 4/199. L'ancien chiffre venait de la règle par nom, d'avant la détection automatique.
+
+## 10. Résultat mesuré : Gen12b (fine-tune de Gen7, Kaggle T4, 0 €)
+
+Gen12b est le run Gen12 de Deep avec ses défauts corrigés. Même départ (Gen7, 27,7 M paramètres) et même corpus de 47 809 traces, plus :
+- **vocabulaire étendu** (2 310 → 2 368 tokens). Dans Gen12, 59 % des exemples contenaient `<unk>`, y compris dans les réponses ; dans Gen12b, il n'en reste aucun ;
+- **ADN découpé** lettre par lettre ;
+- **vraies étapes de calcul** : retenues de l'addition colonne par colonne, multiplication décomposée par position. Les erreurs de Gen7 sur D2 étaient surtout des erreurs de calcul faites avec la bonne procédure ;
+- **rejeu du corpus Gen7** (24 001 traces) ;
+- **anti-fuite** : 0 recouvrement avec les 199 cas (signature et 13-grammes), et les 44 questions D2 présentes dans les corpus Gen7/Gen12 retirées ;
+- 8 000 étapes, batch 32, lr 2e-4 cosinus. Validation 3,70 → 0,095. 17 minutes de T4.
+
+Les prédictions sont générées en greedy, sans outil, avec 96 tokens maximum. Gen7 a été réévalué dans le même kernel avec les mêmes réglages. Gen6 reprend ses prédictions enregistrées.
+
+| Modèle | bench199 v1 | **bench199 v2** | bench199 v2_strict | D2 propre v2 (156 cas) |
+|---|---:|---:|---:|---:|
+| Gen6 | 8 | 7 | 3 | 3 |
+| Gen7 | 7 | 15 | 12 | 16 |
+| **Gen12b** | 11 | **24** | **19** | **78** |
+
+IC de Wilson à 95 % : Gen12b bench199 v2 8,2–17,3 % ; D2 propre 42,3–57,8 %.
+
+McNemar exact bilatéral :
+
+| Comparaison | v2 (b/c, p) | v2_strict (b/c, p) | v1 figé (b/c, p) |
+|---|---|---|---|
+| Gen12b vs Gen6, bench199 | 18/1, **p = 0,0001** | 16/0, **p < 0,0001** | 6/3, p = 0,51 |
+| Gen12b vs Gen7, bench199 | 12/3, p = 0,035 | 11/4, p = 0,12 | — |
+| Gen12b vs Gen7, D2 propre | 64/2, p < 0,0001 | 64/2, p < 0,0001 | — |
+
+**Application des seuils imposés** (v2, contre Gen6, McNemar exact) : **24/199 avec p = 0,0001 : critère d'acceptation atteint.** Avec v2_strict aussi : 19/199, p < 0,0001.
+
+**Réserves, à lever avant toute promotion :**
+1. **Audit à la main des 24 réussites** :
+   - 1 faux positif certain : `bench-025`, attendu 34,5. La sortie contient l'opérande 35, accepté par la règle « 4 derniers nombres ». `v2_strict` l'exclut ;
+   - 3 réussites sont acceptées par la tolérance officielle de 2 % mais pas exactes (écart de 1,4 à 1,9 %) ;
+   - les autres sont exactes.
+2. **Gain concentré** : 14 des 24 réussites viennent de deux familles d'épidémiologie (prévalence en %, incidence pour 1000), et 4 de la quantité de matière de l'eau. Ce n'est pas un gain général sur les 6 domaines.
+3. **Avec v1 figé seul** : 11/199, p = 0,51 contre Gen6. L'acceptation dépend donc de l'adoption de v2. Les PR #1 et #3 sont fusionnées, mais l'audit humain des verdicts modifiés (§5, étape 4) n'est pas consigné.
+4. Gen12b a eu 96 tokens de génération, Gen6 48 dans ses prédictions enregistrées. Gen6 s'arrête bien avant 48 tokens, mais cet écart doit être noté.
+
+**Ce qui est démontré :** sur les familles déjà vues avec de nouveaux nombres (D2 propre), l'exécution des procédures passe de **10 % (Gen7) à 50 % (Gen12b)**. L'affirmation « un modèle de 27 M from scratch n'exécute pas les procédures vues » est réfutée.
+
+## 11. Protocole suivant (pré-enregistré, aucun nouveau run lancé)
+
+1. Le Lead audite les 24 réussites de Gen12b (le tableau par cas est dans le résultat Kaggle, non publié ici).
+2. Il décide de promouvoir ou non Gen12b sur la base de **v2_strict** (19/199), qui écarte les correspondances fortuites.
+3. Réévaluer Gen11 avec le contrat (prompts non découpés, comme à l'entraînement) avant de conclure sur l'architecture récurrente.
+4. Seuils inchangés pour tout run suivant : acceptation à au moins 16/199 avec p < 0,05 contre le meilleur modèle accepté ; non concluant de 11 à 15 ; arrêt à 10 ou moins.
+5. Aucune donnée, aucun poids et aucune prédiction par cas ne sont publiés dans ce dépôt.
