@@ -1,11 +1,11 @@
-﻿import json,re,math,unicodedata,os,sys,hashlib
+import json,re,math,unicodedata,os,sys,hashlib
 from pathlib import Path
 
 # Extractor v1 is FROZEN: digitize/norm/numbers/score are unchanged and stay the primary score until the Lead adopts v2.
 # Extractor v2 only adds undigitize(): digit-tokenized models decode 12.5 as "1 2 . 5", which v1 reads as 1, 2, 5.
 # Pure functions come before any torch import so --selftest and --rescore run on CPU without torch.
 EXTRACTOR='v1-frozen+v2-undigitize'
-DIGIT_MODELS=('gen6','gen7','gen11')
+DIGIT_MODELS=('gen6','gen7','gen8','gen9','gen10','gen11')
 
 def digitize(t):return re.sub(r'[0-9]+(?:[.,][0-9]+)?',lambda m:' '.join(m.group(0).replace(',',' , ').replace('.',' . ')),t)
 def norm(t):
