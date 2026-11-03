@@ -385,3 +385,65 @@ Par domaine (v2) :
    - une réplication avec une autre graine ;
    - corriger l'arrêt de génération (token de fin, objet de Mistral-étapes, §15) ;
    - régler la question de l'hébergement : un 7B demande un GPU ou une quantification CPU. L'adaptateur LoRA Cloudflare existant repose sur Mistral-7B-Instruct-v0.2, qui n'est pas la même base.
+
+## 18. Résultat mesuré : Mistral-étapes (`khd-mistral-steps-20261103`)
+
+**Modèle.** Même base et même LoRA que Deep (rang 16, q/k/v/o). 1 000 steps sur le corpus Gen15 (83 177 exemples, environ 0,1 époque), graine 1503, 1 h 58 sur T4. Perte finale 0,03.
+
+Corrections par rapport au script de Deep :
+- perte sur la réponse seule ;
+- token de fin appris ;
+- prédictions faites dans le même kernel.
+
+**Arrêt.** Le modèle s'arrête seul : 112 caractères en moyenne. Les prédictions sont notées **sans aucune coupe**.
+
+| Modèle | bench199 v2 | v2_strict | D2 propre | D3 prépa |
+|---|---|---|---|---|
+| Gen12b | 24 | 19 | 78 | – |
+| Gen15 | 27 | 18 | 107 | 41/220 |
+| Mistral + LoRA Deep (coupé) | 113 | 103 | 94 | – |
+| **Mistral-étapes** | **111** | **105** | **105** | **162/220** |
+
+Comparaisons appariées (McNemar exact, b/c) :
+
+| Comparaison | v2 | v2_strict |
+|---|---|---|
+| Mistral-étapes vs Gen6 | 104/0, p < 1e-6 | 102/0, p < 1e-6 |
+| Mistral-étapes vs Gen12b | 92/5, p < 1e-6 | 90/4, p < 1e-6 |
+| Mistral-étapes vs LoRA Deep, bench199 | 17/19, p = 0,87 | 17/15, p = 0,86 |
+| Mistral-étapes vs LoRA Deep, D2 propre | 15/4, p = 0,019 | |
+| Mistral-étapes vs Gen12b, D2 propre | 36/9, p = 1e-4 | |
+
+Par domaine (v2), avec entre parenthèses le score de l'adaptateur de Deep :
+- physique 28/34 (28) ;
+- chimie 22/25 (20) ;
+- biologie 23/41 (15) ;
+- mathématiques 19/35 (23) ;
+- épidémiologie 18/30 (22) ;
+- informatique 1/34 (5).
+
+D3 par famille :
+
+| Famille | Score |
+|---|---|
+| Horner | 20/20 |
+| Prévalence | 20/20 |
+| Incidence | 20/20 |
+| Suites récurrentes | 20/20 |
+| Binomiaux | 18/20 |
+| Cramer | 17/20 |
+| Puissances modulo | 14/20 |
+| Facteurs premiers | 12/20 |
+| Déterminants 3×3 | 10/20 |
+| Euclide | 9/20 |
+| Sommes de carrés | 2/20 |
+
+**Lecture.**
+1. Sur bench199, Mistral-étapes est au niveau de l'adaptateur de Deep (p = 0,87), mais il répond proprement, sans troncature.
+2. Il est meilleur sur D2 propre (p = 0,019) et sur D3 : 162/220, contre 41 pour Gen15 qui a été entraîné sur le même corpus. Les traces vérifiées s'apprennent bien mieux sur une base 7B.
+3. Le corpus est celui de Gen15, déjà filtré : aucun gabarit de bench199. D3 a été généré avec une autre graine.
+4. Point faible commun aux deux adaptateurs : l'informatique (1 et 5 sur 34). Il n'existe pas encore de famille de traces pour ce domaine.
+5. Aucune promotion. Il reste :
+   - l'audit du Lead ;
+   - une seconde graine ;
+   - l'hébergement.
