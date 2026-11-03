@@ -593,3 +593,26 @@ D4 par famille : restes chinois 20/20, produits de matrices 20/20, suites d'ordr
 3. **Réserve importante, hors seuils** : contre la graine 2, bench199 baisse nettement (126 → 105, p = 0,0003). Les trois runs donnent 105, 111 et 126 : bench199 varie de ±10 cas selon la graine et le corpus, et la prépa ne transfère pas vers bench199. Le gain est réel sur les exercices générés (D3 +20, D3cs +21), pas sur le benchmark métier.
 4. Points faibles restants : sommes de carrés (5/20, produit à trois facteurs), Bézout (11/20), et en informatique décimal → binaire 5/20, complément à deux 7/20, taille mémoire 8/20. Les trois derniers sont visés par Gen18 (§22), pré-enregistré avant ces résultats.
 5. Aucune promotion. Mistral-étapes 4 (§22) est lancé.
+
+## 24. Protocole suivant (pré-enregistré avant les résultats) : Mistral-étapes 5, sciences
+
+Demande du propriétaire : entraîner l'IA sur les maths, la physique, la chimie et la biologie. Écrit avant tout résultat de Mistral-étapes 4 et 5.
+
+**Corpus Gen19** (`khd-gen19-sciences-20261103`) : 30 000 lignes de Gen18 et **55 familles d'exercices générés**, du lycée à la prépa.
+- **Maths (18)** : équations du premier degré, racines du second degré, dérivées, intégrales de polynômes, probabilités (dés, urnes), espérance, variance, Pythagore, volumes, complexes (produit, module), produit scalaire, équations exponentielles, pourcentages successifs, arrangements, composition de fonctions, moyennes pondérées.
+- **Physique (14)** : mouvement uniformément accéléré, chute libre, conservation de l'énergie, deuxième loi de Newton avec frottements, résistances en série et en parallèle, énergie électrique et coût, ondes, pression hydrostatique, chaleur massique, lentilles minces, chocs mous, décroissance radioactive, conversions de vitesse.
+- **Chimie (9)** : masses molaires, quantités de matière, stœchiométrie, réactif limitant, volume molaire, concentrations, pH, pourcentage massique, dosage.
+- **Biologie (12)** : croisements à un gène, croisements à deux gènes, Hardy-Weinberg, traduction avec le code génétique réel, complémentarité et transcription, taux de GC, croissance bactérienne, mitose et méiose, rendement écologique, débit cardiaque, dénombrement de colonies, IMC.
+- **Épidémiologie (2)** : sensibilité, spécificité et VPP, odds ratio.
+
+25 476 nouveaux exemples, 103 410 égalités recalculées (exactes en fractions, ou à l'arrondi près pour « ≈ »), aucune question retirée par le filtre anti-fuite (bench199 et D2). Aucun texte de manuel ni de sujet d'examen. Certaines familles sont petites parce que leur espace de questions est limité (pH 22, dés 14, chute libre 8).
+
+**Run.** `khd-mistral-steps5-20261103` : même pipeline, graine 1913, **2 000 steps**.
+
+**Mesure indépendante.** **D6** : 440 questions, 8 par famille, nouvelle graine, tenues à part (avec D3, D3cs, D4 et D5cs).
+
+**Seuils.**
+- **D6** : au moins 308/440 (70 %), et au moins 60 % dans chacun des cinq domaines.
+- **Non-régression** : bench199 et D2 propre sans perte significative (p < 0,05) contre Mistral-étapes (§18) ; D4 sans perte significative contre Mistral-étapes 3 (§20).
+- **Indicatif** : bench199 par domaine (biologie, chimie, physique, maths). Le choix des domaines vient d'une demande du propriétaire, pas des questions de bench199, que je n'ai pas regardées.
+- **Promotion** : aucune avant l'audit du Lead.
