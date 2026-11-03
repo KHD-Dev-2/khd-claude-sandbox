@@ -56,9 +56,11 @@ D2 (200 cas, familles vues, nombres neufs) :
 
 Les 35 réussites D2 de Gen7 ont été relues une par une : la ligne `Réponse :` du modèle porte la valeur attendue.
 
+**Correction (contamination de D2).** 44 des 200 questions D2 figurent mot pour mot dans le corpus d'entraînement de Gen7. 19 des 35 réussites de Gen7 sont parmi elles. Sur les **156 cas D2 propres**, Gen7 obtient **16/156 (10,3 %)**. C'est ce chiffre qu'il faut retenir pour « exécution des procédures vues avec de nouveaux nombres ». Ces mêmes 44 questions sont aussi dans le corpus Gen12, alors que son manifeste indique `excluded_d2: 200`.
+
 **Lecture, sans revendiquer de gain :**
 - « Gen6 meilleur candidat » n'est pas établi. 7 de ses 8 succès v1 disparaissent en v2 : ce sont des correspondances fortuites.
-- « D2 = 0/200, le modèle n'exécute pas les procédures vues » est **faux tel qu'énoncé**. Gen7 en exécute environ 17,5 %. C'est toujours sous le seuil de 50 % : la conclusion « la diversité seule n'est pas la priorité » tient, mais la décision « arrêt définitif » reposait sur une mesure erronée.
+- « D2 = 0/200, le modèle n'exécute pas les procédures vues » est **faux tel qu'énoncé**. Gen7 en exécute environ 10 % sur les cas D2 propres (16/156). C'est toujours sous le seuil de 50 % : la conclusion « la diversité seule n'est pas la priorité » tient, mais la décision « arrêt définitif » reposait sur une mesure erronée.
 - Selon les seuils imposés, Gen7 est **non concluant** dans les deux variantes : 15/199 avec p = 0,077 (v2), ou 12/199 avec p = 0,012 mais moins de 16 (v2_strict). Aucune promotion.
 
 ## 4. Données, architecture, hyperparamètres
