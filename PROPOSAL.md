@@ -471,3 +471,29 @@ D3 par famille :
 - **Réplication** : bench199 hors informatique à ±10 cas de Mistral-étapes (graine 1503), et aucune différence appariée significative sur D2 propre ni sur D3.
 - **Informatique** : D3cs ≥ 110/220. Le gain en informatique sur bench199 est rapporté à titre indicatif.
 - **Promotion** : aucune avant l'audit du Lead.
+
+## 20. Protocole suivant (pré-enregistré avant les résultats) : Mistral-étapes 3, prépa v2
+
+**Diagnostic sur D3** (Mistral-étapes, graine 1503). La procédure est juste, mais un calcul intermédiaire est faux :
+- un reste de division (`350=4×70+100`) ;
+- une somme de trois termes (`100+42+150=392`) ;
+- un produit de deux nombres à plusieurs chiffres (`702×53`) ;
+- un exposant mal compté (`2^4` au lieu de `2^5`).
+
+**Corpus Gen17** (`khd-gen17-prepa-v2-20261103`) :
+- 24 000 lignes de Gen14 ;
+- les familles de Gen15 et celles d'informatique de Gen16 ;
+- **prépa v2** : Euclide, puissances modulo, déterminants, sommes de carrés et facteurs premiers, avec des étapes atomiques. Chaque division est vérifiée (`q×b=P ; a-P=r ; r<b`), les termes s'additionnent deux à deux, les produits sont découpés chiffre par chiffre et les facteurs comptés explicitement ;
+- **7 nouvelles familles** : Bézout (Euclide étendu), inverse modulaire, suites d'ordre 2, sommes géométriques, produits de matrices 2×2, restes chinois, sommes arithmétiques.
+
+33 799 nouveaux exemples, 279 151 étapes recalculées, 1 780 questions retirées par le filtre anti-fuite. Aucun texte de sujet de concours n'est utilisé.
+
+**Run.** `khd-mistral-steps3-20261103` : même pipeline, graine 1709, 1 500 steps, jusqu'à 400 tokens générés.
+
+**Réserve.** Les corrections viennent de l'analyse des échecs sur D3 : D3 n'est donc plus indépendant pour ces familles. La mesure indépendante est **D4** : 240 questions sur les 12 familles v2 et nouvelles, autre graine, tenues à part. Les questions de D3, D3cs et D4 sont exclues de l'entraînement.
+
+**Seuils.**
+- **D4** : au moins 168/240 (70 %).
+- **Non-régression** : bench199 et D2 propre sans perte significative (p < 0,05) contre Mistral-étapes (§18).
+- **D3** : rapporté à titre indicatif.
+- **Promotion** : aucune avant l'audit du Lead.
