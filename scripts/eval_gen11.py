@@ -47,13 +47,16 @@ def _v2_text(p,item):
     # Whole-token match instead of substring: v1 counts 'A' as found in any prediction containing the letter a ('Médiane').
     e=tokens(str(item['expected']).rstrip('.'));pt=tokens(p)
     return bool(e) and any(pt[i:i+len(e)]==e for i in range(len(pt)-len(e)+1))
-def score_v2(pred,item,digit_split):
+def _v2_text_in(pred,digit_split,seq_split):
+    p=undigitize(pred) if digit_split else pred
+    return unseq(p) if seq_split else p
+def score_v2(pred,item,digit_split,seq_split=False):
     """v1 rule (any of the last 4 numbers within tolerance) on correctly re-joined numbers."""
-    p=undigitize(pred) if digit_split else pred;it=_v2_item(item)
+    p=_v2_text_in(pred,digit_split,seq_split);it=_v2_item(item)
     return _v2_text(p,it) if it['kind']=='text' else any(_v2_num(numbers_v2(p)[-4:],it))
-def score_v2_strict(pred,item,digit_split):
+def score_v2_strict(pred,item,digit_split,seq_split=False):
     """Same as v2 but only the LAST number counts (v1/v2 accept any of the last 4, which lets operands match by chance)."""
-    p=undigitize(pred) if digit_split else pred;it=_v2_item(item)
+    p=_v2_text_in(pred,digit_split,seq_split);it=_v2_item(item)
     return _v2_text(p,it) if it['kind']=='text' else any(_v2_num(numbers_v2(p)[-1:],it))
 def predictions_digit_split(preds):
     """True when a model's decoded outputs write numbers digit by digit: many 'd d' pairs and no two adjacent digits."""
@@ -63,6 +66,24 @@ def vocab_digit_split(tokens):
     """True when the vocabulary holds single digits but no multi-digit or decimal number token (digit-by-digit corpus)."""
     tokens=set(tokens)
     return all(str(d) in tokens for d in range(10)) and not any(re.fullmatch(r'\d{2,}|\d+[.,]\d+',t) for t in tokens)
+
+# --- preprocessing contract between trainer and evaluator ---
+# The trainer records config['preprocess'] = {'digits': bool, 'sequences': bool}; the evaluator applies the same to prompts
+# and undoes it on outputs. Without the record, the vocabulary decides (never the model name: Gen11's vocabulary holds
+# 965 multi-digit tokens, yet the name rule digitized its prompts).
+def seqsplit(t):return re.sub(r'\b[ACGTU]{2,}\b',lambda m:' '.join(m.group(0)),t)
+def unseq(t):return re.sub(r'\b[ACGTU](?: [ACGTU]\b)+',lambda m:m.group(0).replace(' ',''),t)
+def preprocess_for(config,vocab_tokens):
+    p=(config or {}).get('preprocess')
+    if p:return {'digits':bool(p.get('digits')),'sequences':bool(p.get('sequences')),'source':'config'}
+    return {'digits':vocab_digit_split(vocab_tokens),'sequences':False,'source':'vocab'}
+def prepare_prompt(t,pre):
+    if pre['digits']:t=digitize(t)
+    if pre['sequences']:t=seqsplit(t)
+    return t
+def predictions_seq_split(preds):
+    """True when a model's outputs write nucleotide sequences letter by letter ('C G G T')."""
+    return len(re.findall(r'\b[ACGTU] [ACGTU] [ACGTU]\b',' '.join(preds)))>=3
 
 # --- statistics ---
 def wilson(k,n,z=1.96):
@@ -86,12 +107,13 @@ def rescore(result_path,bench_path,digit_split=None):
     for p in res['predictions']:by_model.setdefault(p['model'],[]).append(p['prediction'])
     # The name rule alone missed gen12 (scored 5/200 instead of 42/200 on D2): also detect digit-split output from the text.
     split={m:(m in DIGIT_MODELS or predictions_digit_split(ps)) for m,ps in by_model.items()}
+    seq={m:predictions_seq_split(ps) for m,ps in by_model.items()}
     for p in res['predictions']:
         it=bench.get(p['id'])
         if it is None:continue
-        ds=split[p['model']] if digit_split is None else digit_split
-        v1=score(p['prediction'],it);v2=score_v2(p['prediction'],it,ds);st=score_v2_strict(p['prediction'],it,ds)
-        m=out['models'].setdefault(p['model'],{'n':0,'v1':0,'v2':0,'v2_strict':0,'recorded_ok':0,'v1_mismatch_recorded':0,'v1_to_v2_gained':0,'v1_to_v2_lost':0,'digit_split':ds})
+        ds=split[p['model']] if digit_split is None else digit_split;ss=seq[p['model']]
+        v1=score(p['prediction'],it);v2=score_v2(p['prediction'],it,ds,ss);st=score_v2_strict(p['prediction'],it,ds,ss)
+        m=out['models'].setdefault(p['model'],{'n':0,'v1':0,'v2':0,'v2_strict':0,'recorded_ok':0,'v1_mismatch_recorded':0,'v1_to_v2_gained':0,'v1_to_v2_lost':0,'digit_split':ds,'seq_split':ss})
         m['n']+=1;m['v1']+=v1;m['v2']+=v2;m['v2_strict']+=st;m['recorded_ok']+=bool(p.get('ok'));m['v1_mismatch_recorded']+=(v1!=bool(p.get('ok')))
         m['v1_to_v2_gained']+=(v2 and not v1);m['v1_to_v2_lost']+=(v1 and not v2)
         out['per_case'].setdefault(p['model'],{})[p['id']]={'v1':v1,'v2':v2,'v2_strict':st}
@@ -131,6 +153,15 @@ def selftest():
     assert score('V2 = 2 , 5 L .',num(2)) and not score_v2('V2 = 2 , 5 L .',num(2),True)
     assert predictions_digit_split(['Réponse : 1 5 8 .']*10) and not predictions_digit_split(['Réponse : 158 .']*10)
     assert vocab_digit_split([str(d) for d in range(10)]+['Réponse',':']) and not vocab_digit_split([str(d) for d in range(10)]+['12'])
+    # Preprocessing contract: the recorded config wins; otherwise the vocabulary decides, never the model name.
+    digits_vocab=[str(d) for d in range(10)];words_vocab=digits_vocab+['12','300']
+    assert preprocess_for({'preprocess':{'digits':True,'sequences':True}},words_vocab)=={'digits':True,'sequences':True,'source':'config'}
+    assert preprocess_for({},words_vocab)['digits'] is False and preprocess_for({},digits_vocab)['digits'] is True
+    assert prepare_prompt('brin GCCA, 12 cas',{'digits':True,'sequences':True})=='brin G C C A, 1 2 cas'
+    assert unseq(seqsplit('Réponse : CGGT.'))=='Réponse : CGGT.'
+    dna={'kind':'text','expected':'CGGTCAAA.'}
+    assert not score_v2('Réponse : C G G T C A A A .',dna,True) and score_v2('Réponse : C G G T C A A A .',dna,True,True)
+    assert predictions_seq_split(['Réponse : C G G T .']*3) and not predictions_seq_split(['A , C .']*3)
     assert mcnemar_exact(4,5)==1.0 and abs(mcnemar_exact(0,3)-0.25)<1e-12 and abs(mcnemar_exact(10,2)-0.03857421875)<1e-12
     assert wilson(8,199)==(0.0205,0.0773)
     print('SELFTEST_OK')
@@ -183,12 +214,12 @@ for name,base,label in models:
         from tokenizers.pre_tokenizers import Whitespace
         v=json.loads((base/'vocab.json').read_text());vocab={t:i for i,t in enumerate(v)};tok=Tokenizer(WordLevel(vocab=vocab,unk_token='<unk>'));tok.pre_tokenizer=Whitespace()
     bos=tok.token_to_id('<bos>') or 0;eos=tok.token_to_id('<eos>');ctx=config['context'];correct=0;correct_v2=0;correct_v2_strict=0
-    prompt_digitized=name in DIGIT_MODELS;vocab_split=vocab_digit_split(tok.get_vocab().keys())
-    # The prompt rule is unchanged (frozen); a mismatch with the vocabulary is only reported, never silently fixed.
-    if prompt_digitized!=vocab_split:print('WARNING_DIGIT_MISMATCH',name,'prompt_digitized',prompt_digitized,'vocab_digit_split',vocab_split,flush=True)
+    vocab_split=vocab_digit_split(tok.get_vocab().keys());pre=preprocess_for(config,tok.get_vocab().keys())
+    prompt_digitized=pre['digits']
+    # The old name rule (DIGIT_MODELS) digitized Gen11 prompts although its vocabulary is not digit-split; it is only reported now.
+    if (name in DIGIT_MODELS)!=prompt_digitized:print('NOTE_NAME_RULE_DIFFERS',name,'name_rule',name in DIGIT_MODELS,'contract',pre,flush=True)
     for i,it in enumerate(bench):
-        q=it['question'];prompt=('Question : '+q+'\nRéponse :')
-        if prompt_digitized:prompt=digitize(prompt)
+        q=it['question'];prompt=prepare_prompt('Question : '+q+'\nRéponse :',pre)
         ids=[bos]+tok.encode(prompt).ids
         with torch.no_grad():
             for _ in range(48):
@@ -196,11 +227,11 @@ for name,base,label in models:
                 if eos is not None and nid==eos:break
                 ids.append(nid)
         pred=tok.decode(ids[len([bos]+tok.encode(prompt).ids):],skip_special_tokens=True);ok=score(pred,it);correct+=int(ok)
-        ok_v2=score_v2(pred,it,vocab_split);ok_st=score_v2_strict(pred,it,vocab_split);correct_v2+=int(ok_v2);correct_v2_strict+=int(ok_st)
+        ok_v2=score_v2(pred,it,pre['digits'],pre['sequences']);ok_st=score_v2_strict(pred,it,pre['digits'],pre['sequences']);correct_v2+=int(ok_v2);correct_v2_strict+=int(ok_st)
         result['predictions'].append({'model':name,'id':it['id'],'domain':it['domain'],'question':q,'expected':it['expected'],'prediction':pred[:300],'ok':ok,'ok_v2':ok_v2,'ok_v2_strict':ok_st})
         if (i+1)%50==0:print(name,i+1,'correct',correct,'v2',correct_v2,flush=True)
     result['models'][name]={'correct':correct,'total':len(bench),'accuracy':round(correct/len(bench),4),'params':sum(p.numel() for p in model.parameters()),
         'correct_v2':correct_v2,'correct_v2_strict':correct_v2_strict,'wilson_v1':wilson(correct,len(bench)),'wilson_v2':wilson(correct_v2,len(bench)),
-        'prompt_digitized':prompt_digitized,'vocab_digit_split':vocab_split}
+        'prompt_digitized':prompt_digitized,'vocab_digit_split':vocab_split,'preprocess':pre}
     print('DONE_MODEL',name,result['models'][name],flush=True)
 Path('/kaggle/working/khd-eval-gen11-result.json').write_text(json.dumps(result,indent=2,ensure_ascii=False)+'\n',encoding='utf-8');print(json.dumps(result['models'],indent=2))

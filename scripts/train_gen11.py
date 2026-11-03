@@ -55,9 +55,17 @@ random.seed(43)
 train_path = sorted(INPUT.rglob("train.txt"))[0]
 val_path = sorted(INPUT.rglob("val.txt"))[0]
 holdout_path = sorted(INPUT.rglob("holdout24.txt"))[0]
-train_lines = [x.strip() for x in re.split(r"\n\s*\n", train_path.read_text(encoding="utf-8")) if x.strip()]
-val_lines = [x.strip() for x in re.split(r"\n\s*\n", val_path.read_text(encoding="utf-8")) if x.strip()]
-holdout_lines = [x.strip() for x in re.split(r"\n\s*\n", holdout_path.read_text(encoding="utf-8")) if x.strip()]
+# Preprocessing contract, recorded in config so eval_gen11.py applies the same to prompts (it used to guess from the model name).
+PREPROCESS = {"digits": True, "sequences": True}
+def digitize(t): return re.sub(r"[0-9]+(?:[.,][0-9]+)?", lambda m: " ".join(m.group(0).replace(",", " , ").replace(".", " . ")), t)
+def seqsplit(t): return re.sub(r"\b[ACGTU]{2,}\b", lambda m: " ".join(m.group(0)), t)
+def prep(t):
+    if PREPROCESS["digits"]: t = digitize(t)
+    if PREPROCESS["sequences"]: t = seqsplit(t)
+    return t
+train_lines = [prep(x.strip()) for x in re.split(r"\n\s*\n", train_path.read_text(encoding="utf-8")) if x.strip()]
+val_lines = [prep(x.strip()) for x in re.split(r"\n\s*\n", val_path.read_text(encoding="utf-8")) if x.strip()]
+holdout_lines = [prep(x.strip()) for x in re.split(r"\n\s*\n", holdout_path.read_text(encoding="utf-8")) if x.strip()]
 tokenizer = Tokenizer(WordLevel(unk_token="<unk>"))
 tokenizer.pre_tokenizer = Whitespace()
 tokenizer.train_from_iterator(train_lines, WordLevelTrainer(vocab_size=4096, min_frequency=1, special_tokens=["<pad>", "<unk>", "<bos>", "<eos>"]))
@@ -65,7 +73,7 @@ vocab = sorted(tokenizer.get_vocab().items(), key=lambda item: item[1])
 vocab = [token for token, _ in vocab]
 stoi = {token: i for i, token in enumerate(vocab)}
 pad_id = stoi["<pad>"]; bos_id = stoi["<bos>"]; eos_id = stoi["<eos>"]; unk_id = stoi["<unk>"]
-config = {"vocab_size": len(vocab), "context": 256, "d_model": 512, "layers": 1, "loops": 6, "heads": 8, "d_ff": 2048, "dropout": 0.1, "tokenizer": "WordLevel/Whitespace", "vocab_size_requested": 4096}
+config = {"vocab_size": len(vocab), "context": 256, "d_model": 512, "layers": 1, "loops": 6, "heads": 8, "d_ff": 2048, "dropout": 0.1, "tokenizer": "WordLevel/Whitespace", "vocab_size_requested": 4096, "preprocess": PREPROCESS}
 ctx = config["context"]
 def make_example(line):
     if "Réponse :" not in line: return None
@@ -75,8 +83,9 @@ def make_example(line):
     aids = tokenizer.encode(after.strip()).ids + [eos_id]
     ids = [bos_id] + qids + aids
     labels = [-100] * (1 + len(qids)) + aids
-    if len(ids) > ctx + 1:
-        ids = ids[:ctx + 1]; labels = labels[:ctx + 1]
+    # The position table has ctx rows; ctx + 1 tokens would index past it.
+    if len(ids) > ctx:
+        ids = ids[:ctx]; labels = labels[:ctx]
     return ids, labels
 train_examples = [e for e in (make_example(x) for x in train_lines) if e]
 val_examples = [e for e in (make_example(x) for x in val_lines) if e]
