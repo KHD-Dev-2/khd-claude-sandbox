@@ -570,3 +570,26 @@ D3cs par famille :
 - **D5cs** : au moins 176/220 (80 %), et au moins 14/20 sur chacune des quatre familles réécrites.
 - **Non-régression** : bench199 et D2 propre sans perte significative (p < 0,05) contre Mistral-étapes (§18) ; D4 sans perte significative contre Mistral-étapes 3 (§20).
 - **Promotion** : aucune avant l'audit du Lead.
+
+## 23. Résultat mesuré : Mistral-étapes 3, prépa v2 (§20)
+
+Run `khd-mistral-steps3-20261103` : graine 1709, 1 500 steps sur Gen17 (57 799 exemples), 3 h 35 sur T4, loss finale 0,013.
+
+| Modèle | bench199 v2 | bench199 strict | D2 propre | D3 | D3cs | D4 |
+|---|---|---|---|---|---|---|
+| Mistral-étapes graine 1 (§18) | 111 | 105 | 105 | 162 | – | – |
+| Mistral-étapes graine 2 (§21) | 126 | 115 | 102 | 165 | 144 | – |
+| **Mistral-étapes 3** | **105** | **97** | **100** | **182** | **165** | **191/240** |
+
+Tests appariés (McNemar exact), Mistral-étapes 3 contre :
+- graine 1 : bench199 b/c 20/26, p = 0,46 ; D2 4/9, p = 0,27 ; D3 32/12, p = 0,004 ;
+- graine 2 : bench199 6/27, **p = 0,0003** ; D2 5/7, p = 0,77 ; D3 30/13, p = 0,014 ; D3cs 28/7, p = 0,0005.
+
+D4 par famille : restes chinois 20/20, produits de matrices 20/20, suites d'ordre 2 20/20, inverse modulaire 19/20, sommes géométriques 18/20, déterminants 17/20, facteurs premiers 16/20, puissances modulo 16/20, Euclide 15/20, sommes arithmétiques 14/20, Bézout 11/20, sommes de carrés 5/20.
+
+**Décision selon les seuils pré-enregistrés.**
+1. **D4 : seuil atteint** (191/240 = 80 %, contre 168 requis).
+2. **Non-régression contre §18 : tenue** (bench199 p = 0,46, D2 p = 0,27).
+3. **Réserve importante, hors seuils** : contre la graine 2, bench199 baisse nettement (126 → 105, p = 0,0003). Les trois runs donnent 105, 111 et 126 : bench199 varie de ±10 cas selon la graine et le corpus, et la prépa ne transfère pas vers bench199. Le gain est réel sur les exercices générés (D3 +20, D3cs +21), pas sur le benchmark métier.
+4. Points faibles restants : sommes de carrés (5/20, produit à trois facteurs), Bézout (11/20), et en informatique décimal → binaire 5/20, complément à deux 7/20, taille mémoire 8/20. Les trois derniers sont visés par Gen18 (§22), pré-enregistré avant ces résultats.
+5. Aucune promotion. Mistral-étapes 4 (§22) est lancé.
