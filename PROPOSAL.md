@@ -220,9 +220,67 @@ Lecture :
 
 Le bug de prétraitement (§9) n'expliquait donc pas l'échec de Gen11 : l'architecture récurrente reste rejetée sur ces données.
 
-## 13. Protocole suivant (pré-enregistré, aucun nouveau run lancé)
+## 13. Protocole suivant (pré-enregistré avant Gen14)
 
 1. Aucune promotion automatique. Gen12b reste le candidat benchmark et attend l'audit du Lead (§11). Gen13 est un candidat D2 seulement.
 2. Pour tout run suivant, la référence est Gen12b. Seuils inchangés : au moins 16/199 et p < 0,05 contre le meilleur modèle accepté, sur le même bench199 et le même évaluateur.
 3. Avant tout nouveau run, examiner pourquoi l'épidémiologie régresse : un format de trace plus long peut déplacer la sortie des réponses courtes.
 4. Aucune donnée, aucun poids et aucune prédiction par cas ne sont publiés dans ce dépôt.
+
+## 14. Résultat mesuré : Gen14 (prévalence et incidence en étapes)
+
+**Diagnostic avant le run.** En épidémiologie, Gen12b et Gen13 répondaient d'un seul coup (« Incidence = 23 pour 1000 »), sans étapes. Leurs réussites et leurs échecs s'inversaient donc d'un run à l'autre.
+
+**Corpus.** Le corpus Gen13 est repris tel quel. Seules les réponses de prévalence et d'incidence (8 434) sont réécrites, en trois étapes :
+1. cas × k ;
+2. division courte par le premier chiffre de la population ;
+3. décalage de la virgule.
+
+Aucune question n'est modifiée. Six réponses du corpus d'origine étaient fausses (145/500 noté 28 % au lieu de 29 %) ; elles sont corrigées.
+
+**Entraînement.** Reprise depuis Gen13 : 6 000 steps, LR 1e-4, 45 min sur T4. Val loss 0,033.
+
+| Ensemble | Gen6 | Gen12b | Gen13 | **Gen14** |
+|---|---|---|---|---|
+| bench199 v2 | 7 | 24 | 21 | **17** |
+| bench199 v2_strict | 3 | 19 | 14 | **15** |
+| D2 propre (156) | – | 78 | 103 | **108** |
+
+Comparaisons appariées (McNemar exact, discordances b/c) :
+
+| Comparaison | v2 | v2_strict |
+|---|---|---|
+| Gen14 vs Gen6 | 12/2, p = 0,013 | 13/1, p = 0,002 |
+| Gen14 vs Gen12b | 3/10, p = 0,09 | 2/6, p = 0,29 |
+| Gen14 vs Gen12b, D2 | 32/2, p < 1e-6 | |
+
+**Lecture.**
+- Les traces de prévalence sont justes sur 7 des 8 cas de bench199.
+- Les 7 cas d'incidence échouent tous. La cause est une erreur de copie : le modèle recopie « 1000 » en « 10000 », puis exécute correctement le reste de la trace. Dans le corpus, les populations d'incidence se limitaient à 500, 1000, 5000, 10000 et 20000, et un modèle de 27 M compte mal les suites de zéros.
+- En épidémiologie, Gen14 passe à 9/30, contre 14 pour Gen12b.
+
+**Réplication de Gen12b par Deep (Gen12c).** Deep a relancé Gen12b avec une autre graine : 21/200 en v2, 16 en strict, contre 24 et 19 pour Gen12b.
+- Un écart de ±3 sur bench199 est donc du même ordre que la variance due à la graine.
+- Les baisses de Gen13 et Gen14 face à Gen12b ne sont pas significatives, et le gain de Gen12b n'est pas non plus robuste.
+
+## 15. Runs en cours (résultats à venir, mêmes seuils)
+
+1. **Gen15** : reprise depuis Gen14 sur un corpus enrichi.
+   - Familles « prépa » générées, chacune avec un exemple de trace : PGCD d'Euclide, puissances modulo, suites récurrentes, coefficients binomiaux, Horner, déterminants 3×3, Cramer, sommes de carrés, facteurs premiers.
+   - Prévalence et incidence avec des populations variées.
+   - 80 372 étapes recalculées par le générateur.
+   - Le filtre anti-fuite a retiré 1 879 questions qui reprenaient un gabarit du benchmark.
+   - Nouveau jeu tenu à part, **D3** (220 questions, autre graine, notées sur la réponse finale exacte). D3 mesure l'exécution des procédures sur de nouveaux nombres. Il ne dit rien sur des sujets de concours réels : aucun texte de sujet n'est utilisé, leurs droits n'étant pas établis.
+   - Réserve : le correctif d'incidence vient de l'analyse des échecs sur bench199. Un gain en épidémiologie sur bench199 sera donc signalé comme tel.
+2. **Évaluation de l'adaptateur Mistral-7B de Deep** (`khd-mistral-qlora-20261103`, base Mistral-7B-v0.1, Apache 2.0). Mesure sur bench199 et D2 propre en décodage glouton. Le témoin est la même base sans adaptateur, pour séparer ce qui vient du modèle de base de ce qui vient de l'entraînement KHD.
+3. **Mistral-étapes** : le pipeline QLoRA de Deep entraîné sur le corpus Gen15, avec trois corrections :
+   - la perte ne porte que sur la réponse ;
+   - un token de fin est appris (le collateur d'origine le masquait, car pad = eos) ;
+   - les prédictions bench199, D2 et D3 sont produites dans le même kernel.
+
+Pour chaque run, la décision suit les mêmes seuils :
+- **Référence** : Gen12b, à comparer avec la variance de graine mesurée par Deep.
+- **Acceptation** : au moins 16/199 et p < 0,05 contre le meilleur modèle accepté.
+- **Promotion** : aucune avant l'audit du Lead.
+
+Inférence locale (poids ouverts), sans API externe, 0 €.
