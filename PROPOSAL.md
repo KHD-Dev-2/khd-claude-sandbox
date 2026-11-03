@@ -158,10 +158,71 @@ McNemar exact bilatéral :
 
 **Ce qui est démontré :** sur les familles déjà vues avec de nouveaux nombres (D2 propre), l'exécution des procédures passe de **10 % (Gen7) à 50 % (Gen12b)**. L'affirmation « un modèle de 27 M from scratch n'exécute pas les procédures vues » est réfutée.
 
-## 11. Protocole suivant (pré-enregistré, aucun nouveau run lancé)
+## 11. Protocole suivant (pré-enregistré avant Gen13)
 
 1. Le Lead audite les 24 réussites de Gen12b (le tableau par cas est dans le résultat Kaggle, non publié ici).
 2. Il décide de promouvoir ou non Gen12b sur la base de **v2_strict** (19/199), qui écarte les correspondances fortuites.
 3. Réévaluer Gen11 avec le contrat (prompts non découpés, comme à l'entraînement) avant de conclure sur l'architecture récurrente.
 4. Seuils inchangés pour tout run suivant : acceptation à au moins 16/199 avec p < 0,05 contre le meilleur modèle accepté ; non concluant de 11 à 15 ; arrêt à 10 ou moins.
 5. Aucune donnée, aucun poids et aucune prédiction par cas ne sont publiés dans ce dépôt.
+
+## 12. Résultat mesuré : Gen13 (traces atomiques) et Gen11 sous contrat
+
+**Gen13** reprend Gen12b (même architecture, 27,8 M) et le corpus Gen12b. Les familles qui échouaient sur D2 y sont réécrites en étapes atomiques, chacune vérifiable :
+- moyennes : addition en colonnes avec retenues, puis division courte chiffre par chiffre ;
+- travail W = F×d : produits chiffre par chiffre, puis somme des produits partiels ;
+- énergie cinétique : v², puis m×v², puis ÷2.
+
+Le générateur recalcule 129 243 étapes avant l'écriture. Les rapports de risque ne sont pas réécrits : leur division longue dépasse 256 tokens.
+
+| Paramètre d'entraînement | Valeur |
+|---|---|
+| Steps | 8 000 |
+| Batch | 32 |
+| LR | 1,5e-4, cosinus |
+| Durée | 3 558 s sur T4 |
+| val loss | 0,036 (Gen12b : 0,095) |
+| `<unk>` et lignes tronquées | 0 |
+
+Évaluateur et cas inchangés (bench199, D2 propre = 156 cas). McNemar exact bilatéral.
+
+| Ensemble | Gen6 | Gen7 | Gen12b | **Gen13** |
+|---|---|---|---|---|
+| bench199 v2 | 7 | 15 | 24 | **21** |
+| bench199 v2_strict | 3 | 12 | 19 | **14** |
+| D2 propre v2 | – | 16/156 | 78/156 | **103/156** |
+
+Comparaisons appariées :
+
+| Comparaison | Discordances (b/c) | p exact |
+|---|---|---|
+| Gen13 vs Gen6, bench, v2 | 17/3 | 0,0026 |
+| Gen13 vs Gen6, bench, v2_strict | 13/2 | 0,0074 |
+| Gen13 vs Gen12b, bench, v2 | 4/7 | 0,55 |
+| Gen13 vs Gen12b, bench, v2_strict | 2/7 | 0,18 |
+| Gen13 vs Gen12b, D2 propre | 27/2 | 1,6e-6 |
+
+Détail D2 propre (Gen12b → Gen13) :
+- moyennes : 3 → 15/29 ;
+- travail : 5 → 17/19 ;
+- énergie cinétique : 0 → 1/8 ;
+- additions, ARN et prévalence : inchangées, à 100 % ;
+- rapports de risque : toujours 0.
+
+Lecture :
+1. Les traces atomiques font ce qu'elles visent. Sur les procédures déjà vues avec de nouveaux nombres, le taux passe de 50 % à 66 % (p = 1,6e-6).
+2. Elles ne transfèrent pas au benchmark. Gen13 passe le seuil contre Gen6 (21 ≥ 16, p < 0,05), mais pas contre Gen12b : 3 réussites de moins en v2, 5 en strict, différence non significative. Les cas perdus sont surtout en épidémiologie (14 → 12). Gen12b reste le meilleur candidat sur le benchmark.
+3. L'énergie cinétique reste à 1/8 : la chaîne v² → m×v² → ÷2 est trop longue pour être tenue sans erreur.
+
+**Gen11 réévalué sous contrat.** Le vocabulaire de Gen11 n'est pas découpé en chiffres, donc ses prompts ne sont plus digitalisés. Résultats :
+- 5/199 en v2 et 3/199 en strict, identiques à l'ancienne évaluation ;
+- p = 1,0 contre l'ancienne évaluation, p = 0,75 contre Gen6.
+
+Le bug de prétraitement (§9) n'expliquait donc pas l'échec de Gen11 : l'architecture récurrente reste rejetée sur ces données.
+
+## 13. Protocole suivant (pré-enregistré, aucun nouveau run lancé)
+
+1. Aucune promotion automatique. Gen12b reste le candidat benchmark et attend l'audit du Lead (§11). Gen13 est un candidat D2 seulement.
+2. Pour tout run suivant, la référence est Gen12b. Seuils inchangés : au moins 16/199 et p < 0,05 contre le meilleur modèle accepté, sur le même bench199 et le même évaluateur.
+3. Avant tout nouveau run, examiner pourquoi l'épidémiologie régresse : un format de trace plus long peut déplacer la sortie des réponses courtes.
+4. Aucune donnée, aucun poids et aucune prédiction par cas ne sont publiés dans ce dépôt.
