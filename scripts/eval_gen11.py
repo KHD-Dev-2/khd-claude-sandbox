@@ -55,6 +55,10 @@ def score_v2_strict(pred,item,digit_split):
     """Same as v2 but only the LAST number counts (v1/v2 accept any of the last 4, which lets operands match by chance)."""
     p=undigitize(pred) if digit_split else pred;it=_v2_item(item)
     return _v2_text(p,it) if it['kind']=='text' else any(_v2_num(numbers_v2(p)[-1:],it))
+def predictions_digit_split(preds):
+    """True when a model's decoded outputs write numbers digit by digit: many 'd d' pairs and no two adjacent digits."""
+    text=' '.join(preds)
+    return len(re.findall(r'\d \d',text))>=10 and not re.search(r'\d\d',text)
 def vocab_digit_split(tokens):
     """True when the vocabulary holds single digits but no multi-digit or decimal number token (digit-by-digit corpus)."""
     tokens=set(tokens)
@@ -78,10 +82,14 @@ def rescore(result_path,bench_path,digit_split=None):
     res=json.loads(Path(result_path).read_text(encoding='utf-8'))
     bench={x['id']:x for x in (json.loads(l) for l in Path(bench_path).read_text(encoding='utf-8').splitlines() if l.strip())}
     out={'result':str(result_path),'bench_sha256':sha256_file(bench_path),'bench_cases':len(bench),'extractor':EXTRACTOR,'models':{},'per_case':{}}
+    by_model={}
+    for p in res['predictions']:by_model.setdefault(p['model'],[]).append(p['prediction'])
+    # The name rule alone missed gen12 (scored 5/200 instead of 42/200 on D2): also detect digit-split output from the text.
+    split={m:(m in DIGIT_MODELS or predictions_digit_split(ps)) for m,ps in by_model.items()}
     for p in res['predictions']:
         it=bench.get(p['id'])
         if it is None:continue
-        ds=(p['model'] in DIGIT_MODELS) if digit_split is None else digit_split
+        ds=split[p['model']] if digit_split is None else digit_split
         v1=score(p['prediction'],it);v2=score_v2(p['prediction'],it,ds);st=score_v2_strict(p['prediction'],it,ds)
         m=out['models'].setdefault(p['model'],{'n':0,'v1':0,'v2':0,'v2_strict':0,'recorded_ok':0,'v1_mismatch_recorded':0,'v1_to_v2_gained':0,'v1_to_v2_lost':0,'digit_split':ds})
         m['n']+=1;m['v1']+=v1;m['v2']+=v2;m['v2_strict']+=st;m['recorded_ok']+=bool(p.get('ok'));m['v1_mismatch_recorded']+=(v1!=bool(p.get('ok')))
@@ -121,6 +129,7 @@ def selftest():
     assert not score_v2('Réponse : 1 5 9 .',{'kind':'text','expected':'157.'},True) and score_v2('Réponse : 1 5 7 .',{'kind':'text','expected':'157.'},True)
     # A digit glued to a letter is a name, not a number.
     assert score('V2 = 2 , 5 L .',num(2)) and not score_v2('V2 = 2 , 5 L .',num(2),True)
+    assert predictions_digit_split(['Réponse : 1 5 8 .']*10) and not predictions_digit_split(['Réponse : 158 .']*10)
     assert vocab_digit_split([str(d) for d in range(10)]+['Réponse',':']) and not vocab_digit_split([str(d) for d in range(10)]+['12'])
     assert mcnemar_exact(4,5)==1.0 and abs(mcnemar_exact(0,3)-0.25)<1e-12 and abs(mcnemar_exact(10,2)-0.03857421875)<1e-12
     assert wilson(8,199)==(0.0205,0.0773)
