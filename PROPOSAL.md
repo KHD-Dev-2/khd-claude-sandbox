@@ -547,3 +547,26 @@ D3cs par famille :
 
    Le corpus Gen17 (§20) était déjà figé et pré-enregistré : il n'est pas modifié. Ces corrections iront dans une version suivante.
 4. Aucune promotion.
+
+## 22. Protocole suivant (pré-enregistré avant les résultats) : Mistral-étapes 4, informatique v2
+
+Écrit pendant que Mistral-étapes 3 (§20) tourne, **avant d'en connaître les scores**.
+
+**Diagnostic sur D3cs** (graine 2, §21) : la méthode est juste, le calcul atomique est faux. Restes lus à l'envers, produits à plusieurs chiffres, formule des paires, décomposition en puissances de 2.
+
+**Corpus Gen18** (`khd-gen18-informatique-v2-20261103`) : la recette de Gen17, avec quatre familles d'informatique réécrites (v2) :
+- **décimal → binaire** : chaque division par 2 est vérifiée (`37÷2=18 r1 (18×2+1=37)`), puis les restes sont listés dans l'ordre obtenu et retournés explicitement (« lus à l'envers, dernier reste en premier ») ;
+- **complément à deux** : décomposition par soustractions successives (`97-64=33 ; 33-32=1 ; 1-1=0`), puis les 8 bits écrits position par position ;
+- **boucles imbriquées** : produits découpés chiffre par chiffre ; pour les paires i<j, la formule n×(n-1)÷2 est rappelée avec « chaque paire comptée une seule fois » et la division par 2 posée ;
+- **taille mémoire** : produit découpé, puis division par 8 posée.
+
+33 779 nouveaux exemples, 326 674 étapes recalculées, 1 780 questions retirées par le filtre anti-fuite. Aucun texte de sujet de concours.
+
+**Run.** `khd-mistral-steps4-20261103` : même pipeline, graine 1811, 1 500 steps. Lancé seulement après le verdict de §20, pour ne pas dépasser deux sessions GPU Kaggle.
+
+**Réserve.** Les corrections viennent des échecs sur D3cs : D3cs n'est plus indépendant. La mesure indépendante est **D5cs** : 220 questions sur les 11 familles d'informatique, nouvelle graine, tenues à part. Les questions de D3, D3cs, D4 et D5cs sont exclues de l'entraînement.
+
+**Seuils.**
+- **D5cs** : au moins 176/220 (80 %), et au moins 14/20 sur chacune des quatre familles réécrites.
+- **Non-régression** : bench199 et D2 propre sans perte significative (p < 0,05) contre Mistral-étapes (§18) ; D4 sans perte significative contre Mistral-étapes 3 (§20).
+- **Promotion** : aucune avant l'audit du Lead.
