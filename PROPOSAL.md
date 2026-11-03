@@ -447,3 +447,27 @@ D3 par famille :
    - l'audit du Lead ;
    - une seconde graine ;
    - l'hébergement.
+
+## 19. Protocole suivant (pré-enregistré avant les résultats) : Mistral-étapes graine 2 + informatique
+
+**Run.** `khd-mistral-steps2-20261103`, même pipeline que §18, graine 1607, 1 000 steps, sur le corpus **Gen16**. Gen16 reprend Gen15 et ajoute 11 familles d'informatique générées :
+- conversions binaire, décimal et hexadécimal ;
+- opérations bit à bit ;
+- complément à deux ;
+- bits nécessaires ;
+- recherche dichotomique ;
+- boucles imbriquées ;
+- taille mémoire ;
+- notation polonaise inverse ;
+- mise à l'échelle d'une complexité.
+
+13 834 nouveaux exemples, 51 324 étapes recalculées. Chaque réponse est aussi vérifiée contre une fonction Python de référence. Le filtre anti-fuite n'a retiré aucune question.
+
+**Réserve.** Le domaine a été choisi parce que les deux adaptateurs y font 1 à 5 sur 34 dans bench199. Ce choix est fait au niveau du domaine, sans regarder les questions une à une, mais un gain en informatique sur bench199 ne compte pas comme une preuve indépendante. La preuve indépendante est **D3cs** : 220 questions tenues à part, générées avec une autre graine et exclues de l'entraînement.
+
+**Confusion assumée.** La graine et le corpus changent en même temps. La réplication de §18 se lit donc sur ce qui n'a pas changé : bench199 hors informatique, D2 propre et D3.
+
+**Seuils.**
+- **Réplication** : bench199 hors informatique à ±10 cas de Mistral-étapes (graine 1503), et aucune différence appariée significative sur D2 propre ni sur D3.
+- **Informatique** : D3cs ≥ 110/220. Le gain en informatique sur bench199 est rapporté à titre indicatif.
+- **Promotion** : aucune avant l'audit du Lead.
