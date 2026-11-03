@@ -497,3 +497,53 @@ D3 par famille :
 - **Non-régression** : bench199 et D2 propre sans perte significative (p < 0,05) contre Mistral-étapes (§18).
 - **D3** : rapporté à titre indicatif.
 - **Promotion** : aucune avant l'audit du Lead.
+
+## 21. Résultat mesuré : Mistral-étapes graine 2 + informatique (§19)
+
+Run `khd-mistral-steps2-20261103` : 1 000 steps, 1 h 53 sur T4, perte finale 0,029. Prédictions notées sans coupe.
+
+| Ensemble | Graine 1 (Gen15) | **Graine 2 (Gen16)** | Comparaison appariée b/c |
+|---|---|---|---|
+| bench199 v2 | 111 | **126** | 23/8, p = 0,011 |
+| bench199 v2_strict | 105 | **115** | 19/9, p = 0,087 |
+| bench199 hors informatique v2 | 110/165 | **123/165** | 20/7, p = 0,019 |
+| bench199 informatique v2 | 1/34 | 3/34 | 3/1, p = 0,63 |
+| D2 propre | 105 | 102 | 4/7, p = 0,55 |
+| D3 prépa | 162 | 165 | 16/13, p = 0,71 |
+| **D3cs informatique** | – | **144/220** | |
+
+Par domaine (v2, graine 2) :
+- physique 29/34 ;
+- chimie 20/25 ;
+- biologie 28/41 ;
+- mathématiques 24/35 ;
+- épidémiologie 22/30 ;
+- informatique 3/34.
+
+D3cs par famille :
+
+| Famille | Score |
+|---|---|
+| Opérations bit à bit | 20/20 |
+| Recherche dichotomique | 20/20 |
+| Notation polonaise inverse | 20/20 |
+| Bits nécessaires | 18/20 |
+| Hexadécimal | 16/20 |
+| Binaire → décimal | 15/20 |
+| Complexité | 15/20 |
+| Boucles imbriquées | 7/20 |
+| Taille mémoire | 7/20 |
+| Décimal → binaire | 4/20 |
+| Complément à deux | 2/20 |
+
+**Décision selon les seuils pré-enregistrés.**
+1. **Réplication : non, au sens strict.** Hors informatique, l'écart sur bench199 est de +13 cas, au-delà du ±10 prévu, et il est significatif (p = 0,019), mais en faveur de la graine 2. D2 propre et D3 ne bougent pas de façon significative. La graine, le corpus ou les deux déplacent donc bench199 d'environ 13 cas. Le score de Mistral-étapes est à lire comme 111 à 126, pas comme un point fixe.
+2. **Informatique : seuil atteint sur D3cs** (144/220, contre 110 requis). Aucun transfert significatif vers l'informatique de bench199 (3/34) : les questions de bench199 ne recoupent apparemment pas ces familles. Je ne les ai pas regardées, pour ne pas ajuster sur le test.
+3. **Échecs D3cs**, même schéma que D3 : la méthode est juste, le calcul atomique est faux.
+   - Restes lus à l'envers : 236 → `11101010`.
+   - Produits à plusieurs chiffres : `141×32=4496`.
+   - Formule des paires i<j remplacée par n×(n-1).
+   - Décomposition en puissances de 2 fausse dans le complément à deux.
+
+   Le corpus Gen17 (§20) était déjà figé et pré-enregistré : il n'est pas modifié. Ces corrections iront dans une version suivante.
+4. Aucune promotion.
