@@ -12,8 +12,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Compile Python scripts
         run: python -m py_compile scripts/train_gen11.py scripts/eval_gen11.py
+      - name: Evaluator self-test (CPU, no torch)
+        run: python scripts/eval_gen11.py --selftest
       - name: Check no obvious secrets
+        # [_] keeps this line from matching its own pattern.
         run: |
-          if grep -RInE 'rnd_[A-Za-z0-9]{10,}|KAGGLE_KEY|API_KEY|BEGIN (RSA|OPENSSH) PRIVATE KEY' . --exclude-dir=.git; then
+          if grep -RInE 'rnd_[A-Za-z0-9]{10,}|KAGGLE[_]KEY|API[_]KEY|BEGIN (RSA|OPENSSH) PRIVATE KEY' . --exclude-dir=.git; then
             echo 'Potential secret found'; exit 1
           fi
