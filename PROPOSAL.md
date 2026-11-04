@@ -639,3 +639,34 @@ Demande du propriétaire : les maths et les sciences les plus difficiles. Écrit
 - **Non-régression** : D6 sans perte significative contre Mistral-étapes 5 (§24) ; bench199 et D2 propre sans perte significative contre Mistral-étapes (§18).
 - **Indicatif** : D7 par domaine et bench199 par domaine.
 - **Promotion** : aucune avant l'audit du Lead.
+
+## 26. Résultat mesuré : Mistral-étapes 4, informatique v2 (§22)
+
+Run `khd-mistral-steps4-20261103` : graine 1811, 1 500 steps sur Gen18, 3 h 24 sur T4.
+
+| Modèle | bench199 v2 | bench199 strict | D2 propre | D4 | D5cs |
+|---|---|---|---|---|---|
+| Mistral-étapes graine 1 (§18) | 111 | 105 | 105 | – | – |
+| Mistral-étapes 3 (§23) | 105 | 97 | 100 | 191/240 | – |
+| **Mistral-étapes 4** | **117** | **109** | **99** | **191/240** | **194/220** |
+
+Tests appariés (McNemar exact) :
+- contre la graine 1 : bench199 b/c 22/16, p = 0,42 ; D2 3/9, p = 0,15 ;
+- contre Mistral-étapes 3 : bench199 29/17, p = 0,10 ; D2 7/8, p = 1 ; D4 18/18, p = 1.
+
+D5cs, les quatre familles réécrites (avant → après, graine 2 sur D3cs puis Mistral-étapes 4 sur D5cs) :
+- décimal → binaire : 4/20 → **20/20** ;
+- boucles imbriquées : 7/20 → **20/20** ;
+- taille mémoire : 7/20 → **18/20** ;
+- complément à deux : 2/20 → **9/20**.
+
+bench199 par domaine : physique 31/34, chimie 21/25, maths 22/35, épidémiologie 21/30, biologie 20/41, informatique 2/34.
+
+**Décision selon les seuils pré-enregistrés.**
+1. **D5cs total : atteint** (194/220, contre 176 requis).
+2. **Familles réécrites : non atteint** pour le complément à deux (9/20, contre 14 requis). Les trois autres familles dépassent 14/20.
+3. **Non-régression : tenue** (bench199, D2 et D4 sans perte significative).
+4. **Diagnostic du complément à deux.** La décomposition en puissances de 2 et l'inversion des bits sont désormais justes. L'erreur restante est l'ajout de 1 en binaire, qui propage mal la retenue (`11110010` + 1 écrit `11110101`). Une version suivante devra poser cette addition bit par bit, de droite à gauche, avec la retenue explicite. D5cs n'est plus indépendant pour cette famille.
+5. Aucune promotion.
+
+**Suite.** Mistral-étapes 5 (§24) et 6 (§25) attendent : le quota GPU hebdomadaire de Kaggle (30 h) est épuisé. Il sera relancé après sa remise à zéro, sans contournement.
