@@ -670,3 +670,19 @@ bench199 par domaine : physique 31/34, chimie 21/25, maths 22/35, épidémiologi
 5. Aucune promotion.
 
 **Suite.** Mistral-étapes 5 (§24) et 6 (§25) attendent : le quota GPU hebdomadaire de Kaggle (30 h) est épuisé. Il sera relancé après sa remise à zéro, sans contournement.
+
+## 27. Amendement (pré-enregistré avant tout résultat) : Mistral-étapes 6 s'entraîne sur Gen21
+
+Mistral-étapes 6 (§25) n'a pas encore été lancé : le quota GPU de Kaggle est épuisé. Avant tout résultat de Mistral-étapes 5 et 6, son corpus passe de Gen20 à **Gen21**. Gen21 contient tout Gen20, avec quatre familles réécrites (v3) d'après les échecs de Mistral-étapes 4 (§26) :
+- **Euclide et Bézout** : la méthode était juste, mais les soustractions à plusieurs chiffres étaient fausses (`832-708` écrit 100, `186-182` écrit 10). Chaque soustraction entre nombres d'au moins deux chiffres est désormais posée colonne par colonne, avec les retenues (« unités 0+10-5=5 retenue 1, dizaines 5-2=3… »).
+- **Somme des carrés** : les produits partiels étaient décalés au mauvais rang (`109×1` placé en milliers au lieu des dizaines), puis la division par 6 ne s'arrêtait pas. Chaque produit partiel nomme maintenant son rang, et on divise par 2 puis par 3, toujours de façon exacte.
+- **Complément à deux** : la retenue de l'ajout de 1 en binaire était perdue. L'addition est maintenant écrite bit par bit, de droite à gauche, avec la retenue.
+
+Les anciennes versions de ces familles sont retirées du corpus (953 lignes) et remplacées par 3 149 lignes d'entraînement v3 (Euclide 1 400, Bézout 1 400, somme des carrés 228, complément à deux 321 ; ces deux espaces de questions sont petits), plus 200 lignes de validation. 28 434 égalités sont recalculées et aucune fuite n'est détectée. Corpus total : 62 947 lignes. Ces corrections viennent d'échecs observés sur D4 et D5cs, qui ne sont donc plus indépendants pour ces familles.
+
+**Mesure indépendante ajoutée : D8.** 80 questions, 20 par famille v3, nouvelle graine, tenues à part.
+
+**Seuils (en plus de ceux de §25, inchangés).**
+- **D8** : au moins 60/80, et au moins 14/20 pour chacune des quatre familles.
+- Les seuils de §25 restent valables : D7 ≥ 206/344 ; D6 sans perte significative contre Mistral-étapes 5 ; bench199 et D2 propre sans perte significative contre Mistral-étapes (§18).
+- Run inchangé : `khd-mistral-steps6-20261103`, graine 2017, 2 500 steps, jeu de données `khd-gen21-v3-20261104`.
